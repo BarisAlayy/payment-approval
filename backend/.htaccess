@@ -1,0 +1,48 @@
+# Node.js uygulaması için temel ayarlar
+RewriteEngine On
+RewriteBase /
+
+# Güvenlik başlıkları
+Header set X-Content-Type-Options "nosniff"
+Header set X-XSS-Protection "1; mode=block"
+Header set X-Frame-Options "DENY"
+Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+# LiteSpeed özel proxy ayarları
+<IfModule Litespeed>
+    RewriteRule .* - [E=noabort:1]
+    RewriteRule .* - [E=noconntimeout:1]
+</IfModule>
+
+# Node.js uygulamasına yönlendirme
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteRule ^api/(.*) http://127.0.0.1:8080/api/$1 [P,L,E=noconntimeout:1,E=noabort:1]
+
+# Uploads klasörüne erişime izin ver
+<Directory "uploads">
+    Options -Indexes
+    Order allow,deny
+    Allow from all
+    Require all granted
+</Directory>
+
+# Node.js uygulamasına izin ver
+<FilesMatch "server\.js$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
+
+# Hassas dosyalara erişimi engelle
+<FilesMatch "^\.env|package\.json|package-lock\.json$">
+    Order deny,allow
+    Deny from all
+</FilesMatch>
+
+# Dizin listelemeyi devre dışı bırak
+Options -Indexes
+
+# Gizli dosyalara erişimi engelle
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch> 

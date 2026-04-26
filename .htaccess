@@ -1,0 +1,102 @@
+RewriteEngine On
+RewriteBase /
+
+# Dizin listelemeyi kapat
+Options -Indexes +FollowSymLinks
+
+# Temel erişim ayarları
+Order allow,deny
+Allow from all
+
+# Assets klasörüne erişime izin ver
+RewriteCond %{REQUEST_URI} ^/assets/
+RewriteRule ^assets/(.*)$ assets/$1 [L]
+
+# Statik dosyalara erişime izin ver
+RewriteCond %{REQUEST_URI} \.(html|js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$
+RewriteRule ^(.*)$ $1 [L]
+
+# API isteklerini Node.js'e yönlendir (LiteSpeed versiyonu)
+<IfModule mod_proxy.c>
+    ProxyPreserveHost On
+</IfModule>
+
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteRule ^api/(.*) http://127.0.0.1:8080/api/$1 [P,L,E=noconntimeout:1,E=noabort:1]
+
+# LiteSpeed özel proxy ayarları
+<IfModule Litespeed>
+    RewriteRule .* - [E=noabort:1]
+    RewriteRule .* - [E=noconntimeout:1]
+</IfModule>
+
+# CORS başlıkları Express tarafında yönetiliyor (bkz. backend/server.js + ALLOWED_ORIGINS env).
+# Ek bir origin'i prod'da burada da set etmeniz gerekirse aşağıdaki satırları örnek olarak kullanın:
+# Header always set Access-Control-Allow-Origin "https://your-domain.example.com"
+# Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+# Header always set Access-Control-Allow-Headers "Content-Type, Authorization, Accept-Language"
+# Header always set Access-Control-Allow-Credentials "true"
+# Header always set Access-Control-Max-Age "3600"
+
+# OPTIONS isteklerine yanıt ver
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
+
+# Ana dizine gelen istekleri index.html'e yönlendir
+RewriteCond %{REQUEST_URI} ^/$
+RewriteRule ^$ index.html [L]
+
+# Diğer tüm istekleri index.html'e yönlendir (API ve statik dosyalar hariç)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteCond %{REQUEST_URI} !^/assets/
+RewriteRule ^(.*)$ index.html [L]
+
+# Güvenlik başlıkları
+Header always set X-Content-Type-Options "nosniff"
+Header always set X-XSS-Protection "1; mode=block"
+Header always set X-Frame-Options "SAMEORIGIN"
+Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+# Mime type ayarları
+AddType application/javascript .js
+AddType text/css .css
+AddType image/x-icon .ico
+AddType image/svg+xml .svg
+AddType application/font-woff .woff
+AddType application/font-woff2 .woff2
+
+# Sıkıştırma
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/json
+</IfModule>
+
+# Önbellekleme
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+</IfModule>
+
+# Hassas dosyalara erişimi engelle
+<FilesMatch "(^\.env|\.zip|package\.json|package-lock\.json)$">
+    Order deny,allow
+    Deny from all
+</FilesMatch>
+
+# Hassas dizinlere erişimi engelle
+<DirectoryMatch "(^|/)(\.|node_modules|backend/node_modules)/">
+    Order deny,allow
+    Deny from all
+</DirectoryMatch> 
